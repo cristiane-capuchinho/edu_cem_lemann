@@ -1,0 +1,23 @@
+# Dados brutos do INEP (grandes, baixados manualmente, nao versionados)
+# Ver README.md para instrucoes de onde obter cada arquivo.
+data/raw/
+
+# Dados processados (derivados, regenerados rodando leman_final.R
+# sobre data/raw/ — nao precisam ser versionados, alguns passam de
+# 100MB, acima do limite do GitHub)
+data/processed/
+
+# Sessao do R
+.RData
+.RDataTmp*
+.Rhistory
+.Rproj.user/
+
+# Backups e artefatos temporarios de exportacao
+outputs/*backup*
+outputs/*.tmp
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

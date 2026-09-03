@@ -1,68 +1,25 @@
 # =============================================================
-# SETUP INICIAL — Execute UMA VEZ ao clonar o projeto.
-# Cria a estrutura de pastas e move arquivos para os lugares.
+# LEMANN-CEM — Censo Escolar 2015–2025
+# Pipeline unico e monolitico. Os blocos 00-07 abaixo rodam em
+# sequencia quando este arquivo e executado (via source("run.R")).
+# Analista: Anderson Henrique — versao final consolidada.
+#
+# Pre-requisito: working directory na RAIZ do projeto e os
+# microdados do INEP em data/raw/ (ver README.md para onde baixar).
 # =============================================================
 
-setwd("~/Desktop/leman_cem")
+if (!dir.exists("data/raw"))
+  stop("Rode a partir da raiz do projeto: 'data/raw/' nao encontrado. ",
+       "Ver README.md para onde baixar os microdados do INEP.")
 
-dir.create("R",              showWarnings = FALSE)
-dir.create("data/raw",       showWarnings = FALSE, recursive = TRUE)
 dir.create("data/processed", showWarnings = FALSE, recursive = TRUE)
 dir.create("outputs",        showWarnings = FALSE)
-
-# Move CSVs INEP para data/raw
-arquivos_raw <- c(
-  list.files(pattern = "^microdados_ed_basica_.*\\.csv$", ignore.case = TRUE),
-  list.files(pattern = "^Tabela_.*_2025\\.csv$",          ignore.case = TRUE)
-)
-if (length(arquivos_raw) > 0)
-  file.rename(arquivos_raw, file.path("data/raw", arquivos_raw))
-
-# Move .rds para data/processed
-arquivos_rds <- list.files(pattern = "\\.rds$")
-if (length(arquivos_rds) > 0)
-  file.rename(arquivos_rds, file.path("data/processed", arquivos_rds))
-
-# Move XLSX para outputs
-arquivos_out <- c(
-  list.files(pattern = "^codebook_.*\\.xlsx$"),
-  list.files(pattern = "^tabelas_analiticas_.*\\.xlsx$")
-)
-if (length(arquivos_out) > 0)
-  file.rename(arquivos_out, file.path("outputs", arquivos_out))
-
-message("Estrutura inicial criada. Próximo passo: source('run.R')")
-
-
-
-# =============================================================
-# LEMANN-CEM — Censo Escolar 2015–2025
-# Orquestrador único. Executa os 8 blocos em sequência.
-# Anderson Henrique — versão final consolidada (jun/2026).
-# =============================================================
-
-setwd("~/Desktop/leman_cem")
 
 t0 <- Sys.time()
 message("============================================================")
 message("LEMANN-CEM — Pipeline Censo Escolar 2015–2025")
 message("Início: ", format(t0, "%Y-%m-%d %H:%M:%S"))
 message("============================================================\n")
-
-source("R/00_setup.R",        echo = FALSE)
-source("R/01_helpers.R",      echo = FALSE)
-source("R/02_leitura.R",      echo = FALSE)
-source("R/03_tipagem.R",      echo = FALSE)
-source("R/04_empilhamento.R", echo = FALSE)
-source("R/05_tabelas.R",      echo = FALSE)
-source("R/06_validacao.R",    echo = FALSE)   # GATE
-source("R/07_export.R",       echo = FALSE)
-
-t1 <- Sys.time()
-message("\n============================================================")
-message("Pipeline concluído em ",
-        round(difftime(t1, t0, units = "mins"), 1), " min")
-message("============================================================")
 
 
 
@@ -1543,14 +1500,8 @@ message("    tabelas_analiticas: ", round(fs_out[1] / 1024^2, 2), " MB")
 message("    codebook:           ", round(fs_out[2] / 1024^2, 2), " MB")
 message("    diretorio:          ", normalizePath(PATHS$outputs))
 
-
-
-
-
-
-
-# Passo 1 — apenas uma vez ao clonar o projeto
-source("setup_inicial.R")
-
-# Passo 2 — rodar o pipeline inteiro
-source("run.R")
+t1 <- Sys.time()
+message("\n============================================================")
+message("Pipeline concluído em ",
+        round(difftime(t1, t0, units = "mins"), 1), " min")
+message("============================================================")
