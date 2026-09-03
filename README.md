@@ -67,3 +67,23 @@ O codebook documenta os princípios metodológicos do pipeline na aba `notas_met
 
 - `leman_final.R` é monolítico por opção; os blocos 00-07 estão comentados dentro do próprio arquivo.
 - Os xlsx de saída podem gerar um aviso de reparo ao abrir no Excel (relação de `drawing`/`vmlDrawing` do `openxlsx::freezePane()`); não afeta os dados. O banco definitivo (`integrar_banco_final.R`) é gravado sem `freezePane` justamente para evitar isso.
+
+## Declaração de uso de Inteligência Artificial
+
+Ferramentas de IA generativa (assistentes de código baseados em LLM) foram utilizadas
+como apoio na construção deste repositório, nas seguintes frentes:
+
+- refatoração e limpeza de código R (organização de funções, remoção de trechos
+  redundantes, padronização de mensagens de log);
+- revisão de lógica de agregação e dos testes de validação célula a célula contra
+  o CSV bruto do INEP;
+- redação e organização da documentação (este README e as abas de texto do codebook).
+
+Todo o desenho metodológico, a definição das variáveis, as fontes de dados, as
+decisões de recorte e a checagem dos resultados são de responsabilidade do autor.
+Os dados de origem são públicos (INEP, IBGE/SIDRA, PNAD Contínua e Prefeitura de
+São Paulo) e nenhum dado sensível ou pessoal foi fornecido a ferramentas de IA.
+As saídas geradas com apoio de IA foram conferidas manualmente antes de serem
+incorporadas ao projeto.
+
+Analista responsável: Anderson Henrique.
