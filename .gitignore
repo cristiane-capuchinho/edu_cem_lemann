@@ -7,6 +7,10 @@ data/raw/
 # 100MB, acima do limite do GitHub)
 data/processed/
 
+# Cache do download da API de populacao do Ministerio da Saude
+# (PNUD/coleta_populacao_ripsa.R; regeneravel, ~5.570 municipios)
+PNUD/cache_populacao_ms/
+
 # Sessao do R
 .RData
 .RDataTmp*

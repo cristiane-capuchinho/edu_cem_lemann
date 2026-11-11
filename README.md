@@ -19,9 +19,11 @@ Pipeline em R que organiza os microdados do Censo Escolar (INEP, 2015-2025) em t
 │   └── codebook_censo_lemann_cem_v2.xlsx      # codebook do banco definitivo
 ├── PNUD/                         # coleta de população, PNAD Contínua e Bolsa Família
 │   ├── coleta_pnadc_pop_bolsafamilia.R
+│   ├── coleta_populacao_ripsa.R  # população 0-3, 4-5 e 6 anos (Ministério da Saúde / RIPSA)
 │   └── outputs/
 │       ├── conferencia_pnadc_pop_bolsafamilia.rds
-│       └── bf_distrito_painel_2015_2026.csv
+│       ├── bf_distrito_painel_2015_2026.csv
+│       └── populacao_ripsa_0a6_municipios_2015_2025.csv
 └── archive/                      # versões anteriores/soltas, mantidas só como referência
     ├── censo_escolar_2015_2025.R
     ├── codbook.R
@@ -30,7 +32,7 @@ Pipeline em R que organiza os microdados do Censo Escolar (INEP, 2015-2025) em t
 
 ## As três tabelas
 
-- **`tab_municipios`**: um registro por município brasileiro (~5.570) por ano (2015-2025), com contagens de escolas e matrículas por rede (direta/indireta municipal/indireta municipal-estadual) e recorte, mais população total e por faixa etária (0-3, 4-5 anos) e, para as capitais, a taxa de frequência em creche/pré-escola da PNAD Contínua.
+- **`tab_municipios`**: um registro por município brasileiro (~5.570) por ano (2015-2025), com contagens de escolas e matrículas por rede (direta/indireta municipal/indireta municipal-estadual) e recorte, mais população total e por faixa etária (0-3, 4-5 anos; e 0-3, 4-5 e 6 anos pelas estimativas do Ministério da Saúde/RIPSA) e, para as capitais, a taxa de frequência em creche/pré-escola da PNAD Contínua.
 - **`tab_capitais`**: mesmo schema de `tab_municipios`, filtrado às 27 capitais.
 - **`tab_saopaulo`**: mesmo schema, por distrito do município de São Paulo (96 distritos), mais população do município (repetida por distrito, ver caveat abaixo) e cobertura do Bolsa Família por distrito.
 
@@ -40,7 +42,7 @@ Estrutura completa de colunas, tipos e percentual de preenchimento: aba `diciona
 
 1. Baixe os microdados do Censo Escolar INEP (2015-2025) em <https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados/censo-escolar> e coloque em `data/raw/` (nomes esperados: `microdados_ed_basica_AAAA.csv` para 2015-2024, e os arquivos separados de 2025 — `Tabela_Escola_2025.csv`, `Tabela_Matricula_2025.csv`, `Tabela_Docente_2025.csv`, `Tabela_Turma_2025.csv`, `Tabela_Curso_Tecnico_2025.csv`, `Tabela_Gestor_Escolar_2025.csv` —, já que o INEP mudou o formato de distribuição em 2025).
 2. Com o working directory na **raiz do projeto**, rode `source("run.R")`. O Passo 1 (`leman_final.R`) gera `outputs/tabelas_analiticas_2015_2025.xlsx` e o codebook correspondente, validando célula a célula contra o CSV bruto do INEP (GATE — interrompe se houver divergência).
-3. Para o **banco definitivo** (com população/PNAD-C/Bolsa Família): rode `PNUD/coleta_pnadc_pop_bolsafamilia.R` (precisa de rede liberada para IBGE/SIDRA e para dados.prefeitura.sp.gov.br) e depois `integrar_banco_final.R`, que grava `outputs/tabelas_analiticas_2015_2025_v2.xlsx` e `outputs/codebook_censo_lemann_cem_v2.xlsx` **sem sobrescrever** os arquivos do Passo 1.
+3. Para o **banco definitivo** (com população/PNAD-C/Bolsa Família): rode `PNUD/coleta_pnadc_pop_bolsafamilia.R` (precisa de rede liberada para IBGE/SIDRA e para dados.prefeitura.sp.gov.br), `PNUD/coleta_populacao_ripsa.R` (precisa de rede liberada para apidadosabertos.saude.gov.br; faz ~28 mil requisições, guarda o download em cache em `PNUD/cache_populacao_ms/` e pode ser retomado se interrompido) e depois `integrar_banco_final.R`, que grava `outputs/tabelas_analiticas_2015_2025_v2.xlsx` e `outputs/codebook_censo_lemann_cem_v2.xlsx` **sem sobrescrever** os arquivos do Passo 1.
 
 > Os scripts localizam a raiz do projeto sozinhos (subindo diretórios) ou exigem que o working directory já seja a raiz — não há mais `setwd()` com caminho fixo de máquina.
 
@@ -50,13 +52,15 @@ Estrutura completa de colunas, tipos e percentual de preenchimento: aba `diciona
 |---|---|---|
 | Censo Escolar INEP | escolas, matrículas, docentes | escola → agregado a município/capital/distrito |
 | IBGE (`brpop`, SIDRA 9514) | população total e por idade (0-3, 4-5 anos) | município (2022 exato via Censo Demográfico; demais anos estimados) |
+| Ministério da Saúde — estimativas populacionais por idade simples (as do indicador RIPSA de população residente; API de Dados Abertos do MS, `svsa-populacao-residente`) | população de 0-3, 4-5 e 6 anos (`pop_*_ripsa`) | município, 2015-2025 (estimativa anual por idade simples em todos os anos) |
 | PNAD Contínua (SIDRA 7138) | taxa de frequência em creche/pré-escola | só as 27 capitais (restrição da amostra) |
 | Prefeitura de SP (dados.prefeitura.sp.gov.br) | beneficiários do Bolsa Família em creche/pré-escola | distrito, 2015-2026 (duas fontes: descontinuada até 2023, atual desde 2024) |
 
 ## Metodologia e limitações conhecidas
 
-O codebook documenta os princípios metodológicos do pipeline na aba `notas_metodologicas` (P1-P9), a descrição de cada variável em `glossario`, e a validação célula a célula contra o CSV bruto do INEP em `validacao`. Pontos que merecem atenção especial:
+O codebook documenta os princípios metodológicos do pipeline na aba `notas_metodologicas` (P1-P10), a descrição de cada variável em `glossario`, e a validação célula a célula contra o CSV bruto do INEP em `validacao`. Pontos que merecem atenção especial:
 
+- **Duas versões da população de 0-3 e 4-5 anos.** `pop_0a3_mun` / `pop_4a5_mun` aplicam a razão etária do Censo 2022 sobre a faixa 0-4 anual do `brpop` (e usam o valor do Censo em 2022); `pop_0a3_ripsa` / `pop_4a5_ripsa` / `pop_6_ripsa` são as estimativas anuais por idade simples do Ministério da Saúde (as mesmas do indicador RIPSA), inclusive em 2022. As duas versões ficam lado a lado para que se escolha o denominador; as colunas `_ripsa` estão só em `tab_municipios` e `tab_capitais`.
 - **Bolsa Família não é população.** As colunas `qtd_bf_*` medem apenas crianças beneficiárias do programa matriculadas, não a população total de 0-3/4-5 anos do distrito — não usar como denominador de taxa de cobertura populacional.
 - **População em `tab_saopaulo` é do município, repetida por distrito** (colunas com sufixo `_mun`). População geral por distrito de São Paulo não está disponível em nenhuma fonte com API ou exportação viável (SEADE sem exportação automatizada, Censo 2022 por setor censitário descartado por custo-benefício).
 - **PNAD Contínua só cobre as 27 capitais**, confirmado empiricamente via teste de controle (município não-capital retorna `NA` em todos os anos). No banco definitivo, `taxa_creche_0a3` fica preenchida em 208 das 216 células capital × ano — 8 cruzamentos retornam `NA` na própria SIDRA.

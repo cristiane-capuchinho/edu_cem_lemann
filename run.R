@@ -20,8 +20,15 @@ source("leman_final.R")
 # Roda separado porque depende de rede liberada para IBGE/SIDRA e
 # para dados.prefeitura.sp.gov.br. Produz PNUD/outputs/.
 # source("PNUD/coleta_pnadc_pop_bolsafamilia.R")
+#
+# Passo 2b - populacao de 0-3, 4-5 e 6 anos por municipio, 2015-2025,
+# das estimativas do Ministerio da Saude (RIPSA), por idade simples.
+# Depende de rede liberada para apidadosabertos.saude.gov.br; o
+# download e guardado em cache (PNUD/cache_populacao_ms/) e pode ser
+# retomado. Produz PNUD/outputs/populacao_ripsa_0a6_municipios_2015_2025.csv.
+# source("PNUD/coleta_populacao_ripsa.R")
 
-# Passo 3 - integra o resultado do Passo 2 no banco final do Passo 1
+# Passo 3 - integra o resultado dos Passos 2 e 2b no banco final do Passo 1
 # e gera o BANCO DEFINITIVO, sem sobrescrever os arquivos do Passo 1:
 #   outputs/tabelas_analiticas_2015_2025_v2.xlsx
 #   outputs/codebook_censo_lemann_cem_v2.xlsx

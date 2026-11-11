@@ -2,6 +2,8 @@
 # INTEGRAÇÃO FINAL — população, PNAD-C (creche/pré-escola nas
 # capitais) e Bolsa Família por distrito de SP no banco final
 # tabelas_analiticas_2015_2025.xlsx, mais atualização do codebook.
+# Inclui também a população de 0-3, 4-5 e 6 anos das estimativas do
+# Ministério da Saúde (RIPSA), coletada por PNUD/coleta_populacao_ripsa.R.
 #
 # NÃO sobrescreve os arquivos originais: grava em
 #   outputs/tabelas_analiticas_2015_2025_v2.xlsx
@@ -56,6 +58,15 @@ pop_municipios      <- coletado$pop_municipios
 pnadc_capitais      <- coletado$pnadc_capitais
 bf_distrito_painel  <- coletado$bf_distrito_painel
 
+message("\nLendo população 0-3, 4-5 e 6 anos (estimativas MS / RIPSA)...")
+arq_pop_ripsa <- "PNUD/outputs/populacao_ripsa_0a6_municipios_2015_2025.csv"
+if (!file.exists(arq_pop_ripsa)) {
+  stop("Não encontrei '", arq_pop_ripsa, "'. Rode antes PNUD/coleta_populacao_ripsa.R.")
+}
+pop_ripsa <- readr::read_csv(arq_pop_ripsa, show_col_types = FALSE)
+message("    ", nrow(pop_ripsa), " linhas (município x ano), ",
+        dplyr::n_distinct(pop_ripsa$co_municipio), " municípios")
+
 # ── 2) Prepara chaves de join com tipo compatível (texto) ───────
 # No banco final, CO_MUNICIPIO e NU_ANO_CENSO são texto (confirmado
 # no codebook: tipo "character"); os objetos coletados são numéricos.
@@ -70,6 +81,16 @@ pop_join <- pop_municipios |>
     pop_4a5_mun   = pop_4a5,
     pop_metodo_mun = metodo
   )
+
+ripsa_join <- pop_ripsa |>
+  dplyr::transmute(
+    CO_MUNICIPIO  = as.character(as.integer(co_municipio)),
+    NU_ANO_CENSO  = as.character(as.integer(ano)),
+    pop_0a3_ripsa,
+    pop_4a5_ripsa,
+    pop_6_ripsa
+  )
+stopifnot(!anyDuplicated(ripsa_join[c("CO_MUNICIPIO", "NU_ANO_CENSO")]))
 
 pnadc_join <- pnadc_capitais |>
   dplyr::transmute(
@@ -96,6 +117,7 @@ adicionar_pop_pnadc <- function(tab) {
     dplyr::mutate(.chave_co  = as.character(as.integer(CO_MUNICIPIO)),
                   .chave_ano = as.character(as.integer(NU_ANO_CENSO))) |>
     dplyr::left_join(pop_join,   by = c(".chave_co" = "CO_MUNICIPIO", ".chave_ano" = "NU_ANO_CENSO")) |>
+    dplyr::left_join(ripsa_join, by = c(".chave_co" = "CO_MUNICIPIO", ".chave_ano" = "NU_ANO_CENSO")) |>
     dplyr::left_join(pnadc_join, by = c(".chave_co" = "CO_MUNICIPIO", ".chave_ano" = "NU_ANO_CENSO")) |>
     dplyr::select(-.chave_co, -.chave_ano)
 }
@@ -107,9 +129,18 @@ message("\n=========================================================")
 message("VALIDAÇÃO — tab_municipios")
 message("=========================================================")
 message("Linhas: ", nrow(tab_municipios_v2), " (era ", nrow(tab_municipios), ", precisa ser igual)")
-message("Colunas: ", ncol(tab_municipios_v2), " (era ", ncol(tab_municipios), ", esperado +6)")
+message("Colunas: ", ncol(tab_municipios_v2), " (era ", ncol(tab_municipios), ", esperado +9)")
 message("Linhas com pop_total_mun preenchido: ", sum(!is.na(tab_municipios_v2$pop_total_mun)),
         " (esperado = total de linhas, população cobre todo município)")
+message("Linhas com pop_0a3_ripsa / pop_4a5_ripsa / pop_6_ripsa preenchidos: ",
+        sum(!is.na(tab_municipios_v2$pop_0a3_ripsa)), " / ",
+        sum(!is.na(tab_municipios_v2$pop_4a5_ripsa)), " / ",
+        sum(!is.na(tab_municipios_v2$pop_6_ripsa)),
+        " (esperado = total de linhas, as estimativas do MS cobrem todo município)")
+message("--- Linhas SEM população RIPSA (esperado: nenhuma) ---")
+print(as.data.frame(tab_municipios_v2 |>
+  dplyr::filter(is.na(pop_0a3_ripsa)) |>
+  dplyr::select(NU_ANO_CENSO, SG_UF, NO_MUNICIPIO, CO_MUNICIPIO)))
 message("Linhas com taxa_creche_0a3 preenchido: ", sum(!is.na(tab_municipios_v2$taxa_creche_0a3)),
         " (esperado 216, só as 27 capitais nos anos com PNAD-C)")
 
@@ -118,6 +149,8 @@ message("VALIDAÇÃO — tab_capitais")
 message("=========================================================")
 message("Linhas: ", nrow(tab_capitais_v2), " (era ", nrow(tab_capitais), ")")
 message("Linhas com pop_total_mun preenchido: ", sum(!is.na(tab_capitais_v2$pop_total_mun)),
+        " (esperado = total de linhas, 297)")
+message("Linhas com pop_0a3_ripsa preenchido: ", sum(!is.na(tab_capitais_v2$pop_0a3_ripsa)),
         " (esperado = total de linhas, 297)")
 message("Linhas com taxa_creche_0a3 preenchido: ", sum(!is.na(tab_capitais_v2$taxa_creche_0a3)),
         " (esperado 216)")
@@ -180,6 +213,9 @@ glossario_novo <- tibble::tribble(
   "pop_0a3_mun", "Populacao de 0 a 3 anos do municipio. 2022 e valor exato do Censo Demografico (SIDRA tabela 9514, idade em ano unico). Demais anos sao estimados aplicando a razao 0-3/4-5 observada no Censo 2022 sobre a faixa 0-4 anual (brpop::mun_pop_age, source datasus2024) -- estimativa derivada, nao contagem direta. Ver pop_metodo_mun. Em tab_saopaulo, valor do municipio, repetido por distrito.",
   "pop_4a5_mun", "Populacao de 4 a 5 anos do municipio. Mesma fonte e metodo de pop_0a3_mun. Em tab_saopaulo, valor do municipio, repetido por distrito.",
   "pop_metodo_mun", "'censo_exato' (2022, contagem direta do Censo Demografico 2022) ou 'estimado_razao_censo2022' (demais anos, estimativa derivada aplicando a razao etaria de 2022 sobre a populacao 0-4 anual).",
+  "pop_0a3_ripsa", "Populacao estimada de 0 a 3 anos (idades simples 0, 1, 2 e 3, soma dos dois sexos) do municipio no ano. Fonte: estimativas populacionais do Ministerio da Saude, as mesmas do indicador RIPSA de populacao residente, obtidas pela API de Dados Abertos do MS (endpoint vigilancia-e-meio-ambiente/svsa-populacao-residente), script PNUD/coleta_populacao_ripsa.R. Estimativa anual por idade simples, nao contagem; em 2022 nao e o valor do Censo. Alternativa a pop_0a3_mun (que aplica a razao etaria do Censo 2022 sobre a faixa 0-4 do brpop). Somente tab_municipios e tab_capitais.",
+  "pop_4a5_ripsa", "Populacao estimada de 4 a 5 anos (idades simples 4 e 5, soma dos dois sexos) do municipio no ano. Mesma fonte e metodo de pop_0a3_ripsa. Alternativa a pop_4a5_mun.",
+  "pop_6_ripsa", "Populacao estimada de 6 anos (idade simples 6, soma dos dois sexos) do municipio no ano. Mesma fonte e metodo de pop_0a3_ripsa.",
   "taxa_creche_0a3", "Taxa de frequencia escolar de criancas de 0 a 3 anos (PNAD Continua, SIDRA tabela 7138, variavel 10276, classificacao c58, categoria 99749). So preenchido para as 27 capitais (unicos municipios individualizaveis na amostra da PNAD-C, confirmado empiricamente via teste de controle com municipio nao-capital) e para os anos 2016, 2017, 2018, 2019, 2022, 2023, 2024, 2025 (2020-2021 com o modulo de frequencia escolar suspenso na pandemia). NA para os demais 5.541 municipios e para 2020-2021.",
   "taxa_pre_4a5", "Taxa de frequencia escolar de criancas de 4 a 5 anos (PNAD Continua, mesma tabela, categoria 47813, mesma cobertura de taxa_creche_0a3).",
   "fonte_bf", "Origem do dado de cobertura do Bolsa Familia por distrito em tab_saopaulo: 'antigo_2013_2023' (dataset descontinuado da Prefeitura de SP, so creche) ou 'novo_2024_2026' (dataset atual, separa creche de pre-escola). NA quando o distrito/ano nao tem dado de nenhuma das duas fontes.",
@@ -206,6 +242,19 @@ nota_nova <- tibble::tribble(
     "empiricamente via teste de controle (municipio nao-capital retorna NA em todos os anos). Regiao ",
     "Metropolitana de Sao Paulo (tabela 7139, cor/raca) e cor/raca por subprefeitura ficaram fora do escopo ",
     "por decisao do usuario."
+  ),
+  "P10", "Populacao por idade simples das estimativas do Ministerio da Saude (RIPSA)",
+  paste0(
+    "As colunas pop_0a3_ripsa, pop_4a5_ripsa e pop_6_ripsa vem das estimativas populacionais do Ministerio ",
+    "da Saude por municipio, ano, sexo e idade simples (API de Dados Abertos do MS, endpoint ",
+    "svsa-populacao-residente, 2000-2025), as mesmas usadas no indicador RIPSA de populacao residente ",
+    "(arquivo ripsa014dm.csv, conferido par a par para 0-3 e 4-5 anos, 2016-2024, com valores identicos). ",
+    "Somadas por UF, essas estimativas coincidem com as Projecoes da Populacao do IBGE (revisao 2024). ",
+    "Diferem das colunas pop_0a3_mun / pop_4a5_mun, que aplicam a razao etaria do Censo 2022 sobre a faixa ",
+    "0-4 anual do brpop (e usam o valor do Censo em 2022): as colunas _ripsa sao estimativas diretas por ",
+    "idade simples em todos os anos, inclusive 2022, e permitem separar a idade de 6 anos. As duas versoes ",
+    "foram mantidas lado a lado para que o usuario escolha o denominador e possa compara-las. Cobertura: ",
+    "todos os municipios, 2015-2025, em tab_municipios e tab_capitais (nao incluidas em tab_saopaulo)."
   )
 )
 notas_v2 <- dplyr::bind_rows(notas_atual, nota_nova)
@@ -229,7 +278,8 @@ dicionario_saopaulo_v2   <- perfilar(tab_saopaulo_v2, "tab_saopaulo")
 
 cobertura_novas <- tibble::tribble(
   ~metrica, ~valor,
-  "Colunas novas em tab_municipios/tab_capitais", "6 (pop_total_mun, pop_0a3_mun, pop_4a5_mun, pop_metodo_mun, taxa_creche_0a3, taxa_pre_4a5)",
+  "Colunas novas em tab_municipios/tab_capitais", "9 (pop_total_mun, pop_0a3_mun, pop_4a5_mun, pop_metodo_mun, pop_0a3_ripsa, pop_4a5_ripsa, pop_6_ripsa, taxa_creche_0a3, taxa_pre_4a5)",
+  "Linhas de tab_municipios com populacao RIPSA (0-3, 4-5 e 6 anos)", as.character(sum(!is.na(tab_municipios_v2$pop_0a3_ripsa))),
   "Colunas novas em tab_saopaulo", "9 (4 de populacao + fonte_bf, qtd_bf_creche_antigo, qtd_bf_creche_0a3, qtd_bf_pre_4a6, n_escolas_novo)",
   "Linhas de tab_saopaulo com dado de Bolsa Familia", as.character(sum(!is.na(tab_saopaulo_v2$fonte_bf))),
   "Municipios com taxa PNAD-C (0-3/4-5)", "27 (so capitais, anos 2016, 2017, 2018, 2019, 2022, 2023, 2024, 2025)"
